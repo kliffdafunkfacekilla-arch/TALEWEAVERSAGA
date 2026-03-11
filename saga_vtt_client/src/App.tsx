@@ -21,7 +21,6 @@ import { useCharacterStore } from './store/useCharacterStore';
 import { useCombatStore } from './store/useCombatStore';
 import { generateLoadoutFromSheet } from './utils/loadoutMapper';
 import { CampaignSetup } from './components/CampaignSetup';
-import './App.css';
 
 export default function App() {
   const currentScreen = useGameStore((s) => s.currentScreen);
@@ -168,6 +167,7 @@ export default function App() {
 
 
       setScreen('PLAYER');
+      useGameStore.getState().setSagaPhase('EXPLORATION');
       setVttTier(5);
 
     } catch (err: any) {
@@ -347,16 +347,26 @@ export default function App() {
           <SettlementInspector />
           {isEvolutionOpen && <EvolutionUI onClose={(() => setEvolutionOpen(false)) as any} />}
 
-          {/* Tier Breadcrumb / Zoom Control (Dev) */}
-          <div className="absolute top-4 left-4 z-50 flex gap-2">
-            {[1, 2, 3, 4, 5].map((t) => (
+          {/* World Layer / Navigation Controller */}
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-center bg-black/60 border border-zinc-800 backdrop-blur-md p-1 rounded-sm shadow-2xl">
+            {[
+              { tier: 2, label: 'TRAVEL', color: 'text-amber-500', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.2)]' },
+              { tier: 3, label: 'CAMP', color: 'text-emerald-500', glow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]' },
+              { tier: 4, label: 'EXPLORE', color: 'text-cyan-500', glow: 'shadow-[0_0_15px_rgba(6,182,212,0.2)]' },
+              { tier: 5, label: 'TACTICAL', color: 'text-rose-500', glow: 'shadow-[0_0_15px_rgba(244,63,94,0.2)]' },
+            ].map((nav) => (
               <button
-                key={t}
-                onClick={() => setVttTier(t as VTTTier)}
-                className={`w-8 h-8 flex items-center justify-center rounded-full border text-[10px] font-bold transition-all ${vttTier === t ? 'bg-amber-500 border-amber-400 text-black' : 'bg-black/50 border-zinc-700 text-zinc-500 hover:text-white'
-                  }`}
+                key={nav.tier}
+                onClick={() => setVttTier(nav.tier as VTTTier)}
+                className={`px-4 py-1.5 flex flex-col items-center justify-center transition-all duration-300 relative group
+                  ${vttTier === nav.tier 
+                    ? `opacity-100 ${nav.glow}` 
+                    : 'opacity-40 hover:opacity-80'}`}
               >
-                T{t}
+                <span className={`text-[10px] font-black tracking-[0.2em] transition-colors duration-300 ${vttTier === nav.tier ? nav.color : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+                  {nav.label}
+                </span>
+                <div className={`mt-1 h-0.5 transition-all duration-300 ${vttTier === nav.tier ? `w-full bg-current ${nav.color}` : 'w-0 bg-zinc-700'}`} />
               </button>
             ))}
           </div>

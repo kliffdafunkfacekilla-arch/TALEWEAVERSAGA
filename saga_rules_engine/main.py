@@ -197,10 +197,13 @@ async def calculate_character_sheet(request: CharacterBuildRequest):
                 mind_stat = next((s for s in stats_in_pair if s not in BODY_STATS), stats_in_pair[1])
                 
                 lead_stat = body_stat if lead_pref.lower() == "body" else mind_stat
+                trail_stat = mind_stat if lead_pref.lower() == "body" else body_stat
+                
                 lead_val = getattr(final_attributes, lead_stat, 10)
+                trail_val = getattr(final_attributes, trail_stat, 10)
                 
                 s_data["rank"] = lead_val // 5
-                s_data["pips"] = lead_val % 5
+                s_data["pips"] = trail_val % 5
         
         # 5. Calculate Survival Pools (HP, Stamina, Composure, Focus)
         vitals = calculate_pools(final_attributes)
@@ -299,9 +302,13 @@ async def evolve_character(
              body_stat = next((s for s in stats_in_pair if s in BODY_STATS), stats_in_pair[0])
              mind_stat = next((s for s in stats_in_pair if s not in BODY_STATS), stats_in_pair[1])
              lead_stat = body_stat if s_data.lead.lower() == "body" else mind_stat
+             trail_stat = mind_stat if s_data.lead.lower() == "body" else body_stat
+
              lead_val = getattr(sheet.attributes, lead_stat, 10)
+             trail_val = getattr(sheet.attributes, trail_stat, 10)
+
              s_data.rank = lead_val // 5
-             s_data.pips = lead_val % 5
+             s_data.pips = trail_val % 5
 
     return sheet
 

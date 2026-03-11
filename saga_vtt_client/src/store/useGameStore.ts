@@ -2,6 +2,15 @@ import { create } from 'zustand';
 
 export type VTTTier = 1 | 2 | 3 | 4 | 5;
 
+/** 
+ * Saga Phases define the global ruleset and UI constraints active in the VTT.
+ * EXPLORATION: Free movement across tiers T1-T4.
+ * DEPLOYMENT: Token placement phase before T5 combat.
+ * TACTICAL: Grid-bound combat/encounter logic in T5.
+ * DOWNTIME: Rest, training, and narrative beats (T3/T5).
+ */
+export type SagaPhase = 'EXPLORATION' | 'TACTICAL' | 'DEPLOYMENT' | 'DOWNTIME';
+
 export interface LoadoutItem {
     id: string;
     name: string;
@@ -20,7 +29,8 @@ export interface LoadoutItem {
 
 interface GameState {
     campaignId: string;
-    sagaPhase: string;
+    sagaPhase: SagaPhase;
+    setSagaPhase: (phase: SagaPhase) => void;
     devToolsOpen: boolean;
 
     worldData: any;
@@ -70,21 +80,39 @@ interface GameState {
     addChatMessage: (msg: any) => void;
 }
 
-export const useGameStore = create<GameState>((set) => ({
+export const useGameStore = create<GameState>((set, get) => ({
     campaignId: 'stub-campaign',
     activeCampaignId: 'stub-campaign',
     setCampaignId: (id: string) => set({ campaignId: id, activeCampaignId: id }),
+    
     sagaPhase: 'EXPLORATION',
+    setSagaPhase: (phase: SagaPhase) => {
+        console.log(`[PHASE] Transitioning to: ${phase}`);
+        set({ sagaPhase: phase });
+        // Auto-adjust tier based on phase
+        if (phase === 'TACTICAL' || phase === 'DEPLOYMENT') {
+            set({ vttTier: 5 });
+        }
+    },
+
     devToolsOpen: false,
     
-    currentScreen: 'WORLD_MAP',
+    currentScreen: 'MAIN_MENU', // Default to main menu for proper entry flow
     setScreen: (screen) => set({ currentScreen: screen }),
 
     ui_locked: false,
     setUiLocked: (locked) => set({ ui_locked: locked }),
 
-    vttTier: 5,
-    setVttTier: (tier) => set({ vttTier: tier }),
+    vttTier: 1, // Default to Global View
+    setVttTier: (tier) => {
+        const { sagaPhase } = get();
+        // Guard: Cannot leave Tier 5 during Tactical/Deployment phases
+        if (sagaPhase === 'TACTICAL' && tier < 5) {
+            console.warn("[GUARD] Cannot zoom out during Tactical phase.");
+            return;
+        }
+        set({ vttTier: tier });
+    },
 
     clientLoadout: [],
     setClientLoadout: (loadout) => set({ clientLoadout: loadout }),
@@ -92,7 +120,10 @@ export const useGameStore = create<GameState>((set) => ({
     inventory_slots: 10,
     characterSheet: null,
 
-    addChatMessage: (msg) => console.log("Chat Message Stub:", msg),
+    addChatMessage: (msg) => {
+        console.log("Chat Message:", msg);
+        // Implementation for chat persistence/UI update would go here
+    },
 
     worldData: null,
     setWorldData: (data) => set({ worldData: data }),

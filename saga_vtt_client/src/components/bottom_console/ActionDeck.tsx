@@ -51,6 +51,7 @@ export function ActionDeck() {
     const clientLoadout = useGameStore((s) => s.clientLoadout);
 
     const vitals = useCharacterStore((s) => s.vitals);
+    const attributes = useCharacterStore((s) => s.attributes);
     const setPlayerVitals = useCharacterStore((s) => s.setPlayerVitals);
 
     const activeEncounter = useCombatStore((s: any) => s.activeEncounter);
@@ -129,7 +130,7 @@ export function ActionDeck() {
             // Handle Rest separately
             if (card.id === 'action_rest') {
                 addChatMessage({ sender: 'PLAYER', text: "I take a moment to rest." });
-                const directorUrl = import.meta.env.VITE_SAGA_DIRECTOR_URL || 'http://localhost:8000';
+                const directorUrl = import.meta.env.VITE_SAGA_DIRECTOR_URL || 'http://localhost:8050';
                 const res = await fetch(`${directorUrl}/api/campaign/action`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -179,7 +180,7 @@ export function ActionDeck() {
                 addChatMessage({ sender: 'PLAYER', text: actionText });
 
                 if (campaignId) {
-                    const directorUrl = import.meta.env.VITE_SAGA_DIRECTOR_URL || 'http://localhost:8000';
+                    const directorUrl = import.meta.env.VITE_SAGA_DIRECTOR_URL || 'http://localhost:8050';
                     const res = await fetch(`${directorUrl}/api/campaign/action`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -198,10 +199,6 @@ export function ActionDeck() {
                     }
                 }
             }
-            else if (card.type === 'MOBILITY' || card.type === 'SOCIAL' || card.type === 'UTILITY') {
-                // Existing Skill Engine logic would go here...
-            }
-
         } catch (err) {
             addChatMessage({ sender: 'SYSTEM', text: `[ERROR] Action failed: ${err}` });
         } finally {
@@ -213,6 +210,49 @@ export function ActionDeck() {
     const disabled = isProcessing || uiLocked;
     const currentDist = (activeEncounter && selectedTargetId) ? calculateDistance({ tokens: activeEncounter.tokens || [] }, selectedTargetId) : null;
 
+    // ── Helper: Render Lead/Trail Pips ──
+    const renderSkillStats = (card: LoadoutItem) => {
+        if (!card.lead_stat || !card.trail_stat) return null;
+        
+        const leadVal = attributes[card.lead_stat] || 0;
+        const trailVal = attributes[card.trail_stat] || 0;
+        
+        const rank = Math.floor(leadVal / 5);
+        const pips = trailVal % 5; // Using trail stat for pips per GDD logic
+
+        return (
+            <div className="space-y-2 mt-2">
+                <div className="flex justify-between items-center bg-zinc-950 p-1 px-2 border border-zinc-800">
+                    <span className="text-[9px] text-zinc-500 uppercase">Rank</span>
+                    <span className="text-[10px] text-white font-mono font-bold">{rank}</span>
+                </div>
+                
+                {/* Pip Bar */}
+                <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-[8px] text-zinc-500 uppercase px-1">
+                        <span>Pips</span>
+                        <span>{pips}/5</span>
+                    </div>
+                    <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map(p => (
+                            <div 
+                                key={p} 
+                                className={`h-1 flex-grow rounded-full transition-colors duration-500 ${p <= pips ? 'bg-cyan-500 shadow-[0_0_5px_rgba(6,182,212,0.5)]' : 'bg-zinc-800'}`}
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex justify-between items-center bg-zinc-950 p-1 px-2 border border-zinc-800">
+                    <span className="text-[9px] text-zinc-500 uppercase">Triad</span>
+                    <span className="text-[10px] text-cyan-400 font-mono font-bold">
+                        {card.lead_stat.slice(0, 3).toUpperCase()} + {card.trail_stat.slice(0, 3).toUpperCase()}
+                    </span>
+                </div>
+            </div>
+        );
+    };
+
     // ── Render ──
     const displayLoadout = [...clientLoadout, ...defaultExplorationCards];
 
@@ -220,7 +260,7 @@ export function ActionDeck() {
         <div className="flex w-full h-full items-end pb-0 px-4 gap-4 relative">
             <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-amber-900 via-zinc-950 to-zinc-950" />
 
-            <div className="flex-grow flex items-end justify-center gap-3 h-full">
+            <div className="flex-grow flex items-end justify-center gap-3 h-full overflow-x-auto no-scrollbar scroll-smooth p-2">
                 {displayLoadout.map((card) => {
                     const outOfRange = (card.target === 'TARGET' || card.target === 'ENEMY') && currentDist !== null && currentDist > (card.range as number);
                     const isSkill = card.type === 'MOBILITY' || card.type === 'SOCIAL' || card.type === 'UTILITY';
@@ -230,7 +270,7 @@ export function ActionDeck() {
                             key={card.id}
                             onClick={() => handleCardClick(card)}
                             disabled={disabled}
-                            className={`relative group w-40 h-48 bg-zinc-900 border transition-all duration-300 ease-out transform translate-y-6 hover:translate-y-0 hover:z-10 hover:shadow-[0_-10px_20px_rgba(0,0,0,0.5)] flex flex-col text-left overflow-hidden flex-shrink-0
+                            className={`relative group w-40 h-52 bg-zinc-900 border transition-all duration-300 ease-out transform translate-y-6 hover:translate-y-0 hover:z-10 hover:shadow-[0_-10px_20px_rgba(0,0,0,0.5)] flex flex-col text-left overflow-hidden flex-shrink-0
                                 ${CARD_BORDER[card.type] || 'border-zinc-700'}
                                 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                                 ${outOfRange ? 'opacity-60' : ''}
@@ -247,32 +287,26 @@ export function ActionDeck() {
 
                             {/* Card Body */}
                             <div className="p-2.5 flex-grow flex flex-col justify-between">
-                                <p className="text-[10px] text-zinc-400 italic leading-relaxed">
+                                <p className="text-[10px] text-zinc-400 italic leading-relaxed line-clamp-2">
                                     &ldquo;{card.desc}&rdquo;
                                 </p>
 
                                 <div className="space-y-1.5 mt-2">
-                                    {isSkill && card.lead_stat && card.trail_stat && (
-                                        <div className="flex justify-between items-center bg-zinc-950 p-1 px-2 border border-zinc-800">
-                                            <span className="text-[9px] text-zinc-500 uppercase">Triad</span>
-                                            <span className="text-[10px] text-cyan-400 font-mono font-bold">
-                                                {card.lead_stat.slice(0, 3).toUpperCase()} + {card.trail_stat.slice(0, 3).toUpperCase()}
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    {isSkill && card.target_dc && (
-                                        <div className="flex justify-between items-center bg-zinc-950 p-1 px-2 border border-zinc-800">
-                                            <span className="text-[9px] text-zinc-500 uppercase">DC</span>
-                                            <span className="text-[10px] text-amber-400 font-mono font-bold">{card.target_dc}</span>
-                                        </div>
-                                    )}
-
-                                    {!isSkill && (
-                                        <div className="flex justify-between items-center bg-zinc-950 p-1 px-2 border border-zinc-800">
-                                            <span className="text-[9px] text-zinc-500 uppercase">Power</span>
-                                            <span className="text-[10px] text-white font-mono font-bold">{card.dice || '1d6'}</span>
-                                        </div>
+                                    {isSkill ? renderSkillStats(card) : (
+                                        <>
+                                            <div className="flex justify-between items-center bg-zinc-950 p-1 px-2 border border-zinc-800">
+                                                <span className="text-[9px] text-zinc-500 uppercase">Power</span>
+                                                <span className="text-[10px] text-white font-mono font-bold">{card.dice || '1d6'}</span>
+                                            </div>
+                                            {(card.target === 'TARGET' || card.target === 'ENEMY') && (
+                                                <div className="flex justify-between items-center bg-zinc-950 p-1 px-2 border border-zinc-800">
+                                                    <span className="text-[9px] text-zinc-500 uppercase">Range</span>
+                                                    <span className={`text-[10px] font-mono font-bold ${outOfRange ? 'text-red-500' : 'text-green-500'}`}>
+                                                        {card.range} sq
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
 
                                     <div className="flex justify-between items-center bg-zinc-950 p-1 px-2 border border-zinc-800">
@@ -283,15 +317,6 @@ export function ActionDeck() {
                                             {!card.stamina_cost && !card.focus_cost && <span className="text-zinc-500">FREE</span>}
                                         </div>
                                     </div>
-
-                                    {(card.target === 'TARGET' || card.target === 'ENEMY') && (
-                                        <div className="flex justify-between items-center bg-zinc-950 p-1 px-2 border border-zinc-800">
-                                            <span className="text-[9px] text-zinc-500 uppercase">Range</span>
-                                            <span className={`text-[10px] font-mono font-bold ${outOfRange ? 'text-red-500' : 'text-green-500'}`}>
-                                                {card.range} sq {currentDist !== null ? `(${currentDist} away)` : ''}
-                                            </span>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
@@ -303,7 +328,7 @@ export function ActionDeck() {
             </div>
 
             {/* Quick Inventory */}
-            <div className="flex gap-2 items-end flex-shrink-0 pb-4">
+            <div className="flex gap-2 items-end flex-shrink-0 pb-4 overflow-x-auto no-scrollbar max-w-sm">
                 {Array.from({ length: inventorySlots }).map((_, i) => (
                     <div
                         key={i}

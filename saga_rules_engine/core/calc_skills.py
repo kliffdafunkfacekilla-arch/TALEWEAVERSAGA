@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Any
 from .schemas import CoreAttributes
 
 # Safely point to the master data folder
@@ -15,7 +15,7 @@ def load_tactical_triads() -> Dict[str, List[Dict]]:
             return json.load(f)
     return {}
 
-def calculate_skills(attributes: CoreAttributes, chosen_skills: Dict[str, Dict[str, int]]) -> Dict:
+def calculate_skills(attributes: CoreAttributes, chosen_skills: Dict[str, Dict[str, Any]]) -> Dict:
     """
     Calculates ranks, pips, and stat bonuses based on skill selection.
     Strictly enforces:
@@ -81,9 +81,11 @@ def calculate_skills(attributes: CoreAttributes, chosen_skills: Dict[str, Dict[s
                 skill_stat_bonuses[lead_stat] += 1
             
             lead_val = getattr(attributes, lead_stat, 10)
+            trail_stat = mind_stat if lead_preference.lower() == "body" else body_stat
+            trail_val = getattr(attributes, trail_stat, 10)
             
             rank = lead_val // 5
-            pips = lead_val % 5
+            pips = trail_val % 5
             
             compiled_skills[skill_name] = {
                 "rank": rank,
