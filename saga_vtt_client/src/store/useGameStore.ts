@@ -76,8 +76,18 @@ interface GameState {
     tension?: number;
     chaosNumbers?: number[];
     pacingProgress?: number;
+    
+    // Story/Quest State
+    activeQuest: {
+        title: string;
+        objectives: { objective: string; is_complete: boolean }[];
+    } | null;
+    arcName: string;
+    theme: string;
 
     addChatMessage: (msg: any) => void;
+    setQuest: (quest: any) => void;
+    setStoryMetadata: (metadata: { arcName: string, theme: string }) => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -85,6 +95,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     activeCampaignId: 'stub-campaign',
     setCampaignId: (id: string) => set({ campaignId: id, activeCampaignId: id }),
     
+    activeQuest: null,
+    arcName: 'A Bound Destiny',
+    theme: 'Survival',
+    setQuest: (quest) => set({ activeQuest: quest }),
+    setStoryMetadata: (meta) => set({ arcName: meta.arcName, theme: meta.theme }),
     sagaPhase: 'EXPLORATION',
     setSagaPhase: (phase: SagaPhase) => {
         console.log(`[PHASE] Transitioning to: ${phase}`);

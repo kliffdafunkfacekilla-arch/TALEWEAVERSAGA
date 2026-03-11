@@ -35,8 +35,32 @@ class CampaignState(Base):
     hex_densities = Column(JSON, default="{}")
     active_encounter = Column(JSON, nullable=True)
     
+    # World Clock
+    current_time = Column(Float, default=9.0) # 0.0 to 24.0
+    day_phase = Column(String, default="MORNING")
+    
     # NPC state tracking (JSON blob for now)
     npc_states = Column(JSON, default="{}")
+
+class NPCEntity(Base):
+    __tablename__ = "npc_entities"
+    id = Column(String, primary_key=True)
+    campaign_id = Column(String, index=True)
+    name = Column(String)
+    hex_id = Column(Integer, index=True)
+    lx = Column(Integer, default=50)
+    ly = Column(Integer, default=50)
+    hp = Column(Integer, default=10)
+    max_hp = Column(Integer, default=10)
+    disposition = Column(String, default="NEUTRAL")
+    schedule_id = Column(String, nullable=True)
+
+class NPCSchedule(Base):
+    __tablename__ = "npc_schedules"
+    id = Column(String, primary_key=True)
+    name = Column(String)
+    # Routines list: [{start: 6.0, end: 9.0, lx: 40, ly: 40, action: "Sleeping"}]
+    routines = Column(JSON, default="[]")
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
@@ -69,3 +93,15 @@ class WorldEventsLog(Base):
     event_description = Column(String)
     associated_faction = Column(String, nullable=True)
     location_hex_id = Column(String)
+
+class WorldDelta(Base):
+    __tablename__ = "world_deltas"
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(String, index=True)
+    hex_id = Column(Integer, index=True)
+    layer = Column(Integer) # 2 (Region), 3 (Local), 4/5 (Tactical)
+    x = Column(Integer)
+    y = Column(Integer)
+    original_value = Column(String)
+    new_value = Column(String)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)

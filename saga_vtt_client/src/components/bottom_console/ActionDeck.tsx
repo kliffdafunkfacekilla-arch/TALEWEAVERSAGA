@@ -142,6 +142,43 @@ export function ActionDeck() {
                 return;
             }
 
+            // --- TACTICAL RESOURCE DRAIN ---
+            if (isSkill || card.stamina_cost || card.focus_cost) {
+                const rulesEngineUrl = import.meta.env.VITE_SAGA_RULES_ENGINE_URL || 'http://localhost:8014';
+                
+                // Determine Lead Type
+                const bodyStats = ['might', 'endurance', 'vitality', 'fortitude', 'reflexes', 'finesse'];
+                const leadType = bodyStats.includes(card.lead_stat || '') ? 'Body' : 'Mind';
+                
+                // Get current rank for drain multiplier
+                const leadVal = attributes[card.lead_stat || 'might'] || 10;
+                const rank = Math.floor(leadVal / 5);
+
+                const drainRes = await fetch(`${rulesEngineUrl}/api/rules/skills/drain`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        skill_name: card.name,
+                        lead_type: leadType,
+                        rank: rank,
+                        current_stamina: vitals.stamina.current,
+                        current_focus: vitals.focus.current
+                    })
+                });
+
+                if (drainRes.ok) {
+                    const drainData = await drainRes.json();
+                    setPlayerVitals({ 
+                        current_stamina: drainData.new_stamina, 
+                        current_focus: drainData.new_focus 
+                    });
+
+                    if (drainData.is_exhausted) {
+                        addChatMessage({ sender: 'SYSTEM', text: `[EXHAUSTION] Your ${drainData.stamina_drain > 0 ? 'Stamina' : 'Focus'} is depleted! Use a REST action to recover.` });
+                    }
+                }
+            }
+
             // Normal Branch processing...
             if (card.type === 'CONSUMABLE') {
                 addChatMessage({ sender: 'PLAYER', text: `I use ${card.name}.` });
@@ -167,7 +204,7 @@ export function ActionDeck() {
                     if (itemData.math_result > 0) {
                         const poolMap: Record<string, string> = { 'health': 'hp', 'stamina': 'stamina', 'focus': 'focus' };
                         const vitalKey = poolMap[itemData.target_pool?.toLowerCase() || 'health'] || 'hp';
-                        if (vitalKey === 'hp') setPlayerVitals({ current_hp: Math.min(vitals.hp.max, vitals.hp.current + itemData.math_result) });
+                        if (vitalKey === 'hp') setPlayerVitals({ hp: { current: Math.min(vitals.hp.max, vitals.hp.current + itemData.math_result) } });
                     }
                     addChatMessage({ sender: 'SYSTEM', text: `ITEM: ${itemData.details}` });
                 }
@@ -186,8 +223,7 @@ export function ActionDeck() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             campaign_id: campaignId,
-                            player_input: actionText,
-                            stamina_burned: card.stamina_cost || 0
+                            player_input: actionText
                         })
                     });
 

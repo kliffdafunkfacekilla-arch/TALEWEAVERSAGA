@@ -11,7 +11,13 @@ def calculate_pools(stats: CoreAttributes) -> DerivedVitals:
     
     return DerivedVitals(
         max_hp=max_hp,
+        current_hp=max_hp,
         max_stamina=max_stamina,
+        current_stamina=max_stamina,
         max_composure=max_composure,
-        max_focus=max_focus
+        current_composure=max_composure,
+        max_focus=max_focus,
+        current_focus=max_focus,
+        body_injuries=[],
+        mind_injuries=[]
     )

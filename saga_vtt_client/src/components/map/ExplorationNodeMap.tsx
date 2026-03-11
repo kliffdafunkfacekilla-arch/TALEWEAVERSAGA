@@ -8,13 +8,13 @@ export const ExplorationNodeMap = () => {
   const mapData = useWorldStore((s) => s.mapData);
   const fetchMapData = useWorldStore((s) => s.fetchMapData);
   const vttTier = useGameStore((s) => s.vttTier);
-  const hexId = 200500;
+  const activeCampaignId = useGameStore((s) => s.activeCampaignId);
 
   useEffect(() => {
     if (!mapData || mapData.tier !== vttTier) {
-      fetchMapData(hexId);
+      fetchMapData(hexId, activeCampaignId);
     }
-  }, [vttTier, fetchMapData]);
+  }, [vttTier, fetchMapData, activeCampaignId]);
 
   if (!mapData) {
     return (

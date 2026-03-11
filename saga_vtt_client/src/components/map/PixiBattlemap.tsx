@@ -11,7 +11,11 @@ const Token = ({ token, cellSize }: { token: any, cellSize: number }) => {
       <Graphics
         draw={(g) => {
           g.clear();
-          const color = token.is_enemy ? 0xef4444 : 0x3b82f6; // Red for enemy, Blue for player
+          let color = 0x3b82f6; // Default Blue (Friendly)
+          if (token.is_enemy || token.disposition === "HOSTILE") color = 0xef4444; // Red
+          else if (token.disposition === "NEUTRAL") color = 0xf59e0b; // Amber
+          else if (token.disposition === "SUSPICIOUS") color = 0x8b5cf6; // Purple
+
           g.beginFill(color);
           g.lineStyle(2, 0xffffff);
           g.drawCircle(cellSize / 2, cellSize / 2, cellSize / 2.5);
@@ -20,7 +24,14 @@ const Token = ({ token, cellSize }: { token: any, cellSize: number }) => {
       />
       <Text 
         text={token.name?.substring(0, 1) || '?'} 
-        style={new PIXI.TextStyle({ fill: 0xffffff, fontSize: 10, fontWeight: 'bold' })} 
+        style={new PIXI.TextStyle({ 
+          fill: 0xffffff, 
+          fontSize: 10, 
+          fontWeight: 'bold',
+          dropShadow: true,
+          dropShadowDistance: 1,
+          dropShadowBlur: 2
+        })} 
         x={cellSize / 4} 
         y={cellSize / 4} 
       />
@@ -33,15 +44,36 @@ export const PixiBattlemap = () => {
   const mapData = useWorldStore((s) => s.mapData);
   const fetchMapData = useWorldStore((s) => s.fetchMapData);
   const vttTier = useGameStore((s) => s.vttTier);
+  const activeCampaignId = useGameStore((s) => s.activeCampaignId);
+  const saveDelta = useWorldStore((s) => s.saveDelta);
 
   const hexId = 200500;
   const cellSize = 20; // 5ft scale
 
   useEffect(() => {
     if (!mapData || mapData.tier !== vttTier) {
-      fetchMapData(hexId);
+      fetchMapData(hexId, activeCampaignId);
     }
-  }, [vttTier, fetchMapData]);
+  }, [vttTier, fetchMapData, activeCampaignId]);
+
+  const handleTileClick = (x: number, y: number) => {
+    if (!mapData || !mapData.grid) return;
+    const currentVal = mapData.grid[y][x];
+    // Cycle: WALL -> DEBRIS -> FLOOR -> WALL
+    let newVal = "FLOOR";
+    if (currentVal === "WALL") newVal = "DEBRIS";
+    else if (currentVal === "DEBRIS") newVal = "FLOOR";
+    else if (currentVal === "FLOOR" || currentVal === "EMPTY" || currentVal === "GRASS") newVal = "WALL";
+
+    saveDelta({
+      hex_id: hexId,
+      layer: vttTier as any,
+      x,
+      y,
+      original_value: String(currentVal),
+      new_value: newVal
+    }, activeCampaignId);
+  };
 
   // Use activeEncounter data if available, fallback to mapData
   const displayData = activeEncounter || mapData;
@@ -65,6 +97,13 @@ export const PixiBattlemap = () => {
         <Container x={10} y={10} scale={0.8}>
           {/* Grid Background */}
           <Graphics
+            interactive={true}
+            pointerdown={(e) => {
+              const pos = e.data.getLocalPosition(e.currentTarget);
+              const x = Math.floor(pos.x / cellSize);
+              const y = Math.floor(pos.y / cellSize);
+              handleTileClick(x, y);
+            }}
             draw={(g) => {
               g.clear();
               const grid = displayData.grid;

@@ -72,6 +72,7 @@ $envContent = @(
     "VITE_SAGA_DIRECTOR_URL=http://localhost:$($Registry['director'])",
     "VITE_SAGA_ARCHITECT_URL=http://localhost:$($Registry['world_architect'])",
     "VITE_SAGA_RULES_ENGINE_URL=http://localhost:$($Registry['rules_engine'])",
+    "VITE_SAGA_CHAR_ENGINE_URL=http://localhost:$($Registry['rules_engine'])",
     "VITE_SAGA_ASSET_FOUNDRY_URL=http://localhost:$($Registry['asset_foundry'])"
 )
 $envContent | Set-Content -Path $vttEnvPath

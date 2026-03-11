@@ -1,11 +1,11 @@
 from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from core.ai_narrator.graph import create_director_graph
 from core.ai_narrator.state import GameState
-from core.models import Base, CampaignState, ChatMessage, ActiveQuest, CampaignFrameworkTable, WorldEventsLog
+from core.models import Base, CampaignState, ChatMessage, ActiveQuest, CampaignFrameworkTable, WorldEventsLog, WorldDelta, NPCEntity, NPCSchedule
 # Simplified phase to hour mapping for NPC schedules
 PHASE_HOURS = {
     "DAWN": 6.0,
@@ -73,6 +73,23 @@ class FrameworkRequest(BaseModel):
     settings: dict
     history: Optional[List[dict]] = None
     context_packet: Optional[dict] = None
+
+class WorldDeltaRequest(BaseModel):
+    campaign_id: str
+    hex_id: int
+    layer: int
+    x: int
+    y: int
+    original_value: str
+    new_value: str
+
+class TimeRequest(BaseModel):
+    campaign_id: str
+    hours: float
+
+class DirectorPulseRequest(BaseModel):
+    campaign_id: str
+    player_action: Optional[Dict[str, Any]] = None
 
 @app.post("/api/weaver/framework", response_model=CampaignFramework)
 async def create_campaign_framework(request: FrameworkRequest):
@@ -380,15 +397,22 @@ async def pulse_simulation(payload: dict):
     return {"status": "success", "message": f"World advanced 5 ticks. Year {tick_data.get('year')}, {tick_data.get('season')}.", "faction_summary": tick_data.get("factions", [])}
 
 @app.get("/api/world/region/{hex_id}")
-async def get_region_map(hex_id: int):
+async def get_region_map(hex_id: int, campaign_id: str = "DEFAULT"):
     """Tier 2: 20x20 Regional Strategic Grid."""
-    # Assuming biome is retrieved from somewhere, defaulting to Forest for now
-    return TacticalGenerator.generate_region_map("Forest", hex_id)
+    db = SessionLocal()
+    deltas = db.query(WorldDelta).filter(WorldDelta.campaign_id == campaign_id, WorldDelta.hex_id == hex_id, WorldDelta.layer == 2).all()
+    delta_list = [{"x": d.x, "y": d.y, "new_value": d.new_value, "layer": d.layer} for d in deltas]
+    db.close()
+    return TacticalGenerator.generate_region_map("Forest", hex_id, delta_list)
 
 @app.get("/api/world/local/{hex_id}")
-async def get_local_grid(hex_id: int, rx: int, ry: int):
+async def get_local_grid(hex_id: int, rx: int, ry: int, campaign_id: str = "DEFAULT"):
     """Tier 3: 100x100 Local Exploration Grid."""
-    return TacticalGenerator.generate_local_grid("Forest", hex_id, rx, ry)
+    db = SessionLocal()
+    deltas = db.query(WorldDelta).filter(WorldDelta.campaign_id == campaign_id, WorldDelta.hex_id == hex_id, WorldDelta.layer == 3).all()
+    delta_list = [{"x": d.x, "y": d.y, "new_value": d.new_value, "layer": d.layer} for d in deltas]
+    db.close()
+    return TacticalGenerator.generate_local_grid("Forest", hex_id, rx, ry, delta_list)
 
 @app.get("/api/world/tactical/{hex_id}")
 async def get_tactical_grid(hex_id: int, lx: int, ly: int, campaign_id: str = "DEFAULT"):
@@ -402,7 +426,20 @@ async def get_tactical_grid(hex_id: int, lx: int, ly: int, campaign_id: str = "D
         # Pull densities for this hex
         densities = state.hex_densities.get(str(hex_id), {"bandit": 0.2}) if state and state.hex_densities else {"bandit": 0.1}
         
-        return TacticalGenerator.generate_ambient_encounter("Forest", hex_id, lx, ly, current_hour, densities)
+        deltas = db.query(WorldDelta).filter(WorldDelta.campaign_id == campaign_id, WorldDelta.hex_id == hex_id, WorldDelta.layer.in_([4, 5])).all()
+        delta_list = [{"x": d.x, "y": d.y, "new_value": d.new_value, "layer": d.layer} for d in deltas]
+
+        # Resolve NPCs
+        from core.npc_engine import NPCEngine
+        # Seed if empty (first time access for this campaign/hex)
+        if not db.query(NPCEntity).filter(NPCEntity.campaign_id == campaign_id, NPCEntity.hex_id == hex_id).first():
+            NPCEngine.seed_default_npcs(db, campaign_id, hex_id)
+            
+        tokens = NPCEngine.resolve_npc_routines(db, campaign_id, hex_id, current_hour)
+
+        result = TacticalGenerator.generate_ambient_encounter("Forest", hex_id, lx, ly, current_hour, densities, deltas=delta_list)
+        result["tokens"] = tokens
+        return result
     finally:
         db.close()
 
@@ -479,6 +516,62 @@ async def load_campaign(campaign_id: str):
             "active_encounter": campaign.active_encounter
         }
     return {"error": "NotFound"}
+
+@app.post("/api/world/delta")
+async def create_world_delta(request: WorldDeltaRequest):
+    db = SessionLocal()
+    new_delta = WorldDelta(
+        campaign_id=request.campaign_id,
+        hex_id=request.hex_id,
+        layer=request.layer,
+        x=request.x,
+        y=request.y,
+        original_value=request.original_value,
+        new_value=request.new_value
+    )
+    db.add(new_delta)
+    db.commit()
+    db.close()
+    return {"status": "success"}
+
+@app.post("/api/world/time")
+async def advance_world_time(request: TimeRequest):
+    db = SessionLocal()
+    state = db.query(CampaignState).filter(CampaignState.id == request.campaign_id).first()
+    if state:
+        state.current_time = (state.current_time + request.hours) % 24.0
+        # Simple phase calculation
+        if 5.0 <= state.current_time < 9.0: state.day_phase = "DAWN"
+        elif 9.0 <= state.current_time < 17.0: state.day_phase = "MORNING"
+        elif 17.0 <= state.current_time < 20.0: state.day_phase = "EVENING"
+        else: state.day_phase = "NIGHT"
+        db.commit()
+        return {"current_time": state.current_time, "day_phase": state.day_phase}
+    db.close()
+    return {"error": "CampaignNotFound"}
+
+@app.post("/api/director/pulse")
+async def director_pulse(req: DirectorPulseRequest, db: Session = Depends(get_db)):
+    # 1. Assemble Context
+    state = ContextAssembler.assemble_game_state(db, req.campaign_id, req.player_action)
+    if not state:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    # 2. Invoke AI Director Graph
+    result = await director_graph.ainvoke(state)
+
+    # 3. Get Story Metadata
+    framework = db.query(CampaignFrameworkTable).filter(CampaignFrameworkTable.campaign_id == req.campaign_id).first()
+
+    # 4. Return Narration & Commands
+    return {
+        "narration": result.get("ai_narration", ""),
+        "vtt_commands": result.get("vtt_commands", []),
+        "tension": result.get("tension", 0),
+        "active_quest": state["active_quests"][0] if state["active_quests"] else None,
+        "arc_name": framework.arc_name if framework else "A Bound Destiny",
+        "theme": framework.theme if framework else "Survival"
+    }
 
 if __name__ == "__main__":
     import uvicorn

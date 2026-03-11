@@ -16,9 +16,11 @@ import { SettlementInspector } from './components/SettlementInspector';
 import { BioMatrix } from './components/right_panel/BioMatrix';
 import { InventoryPanel } from './components/right_panel/InventoryPanel';
 import { InjurySlots } from './components/right_panel/InjurySlots';
+import { WorldClock } from './components/hud/WorldClock';
 import { useGameStore, type VTTTier } from './store/useGameStore';
 import { useCharacterStore } from './store/useCharacterStore';
 import { useCombatStore } from './store/useCombatStore';
+import { useDirector } from './hooks/useDirector';
 import { generateLoadoutFromSheet } from './utils/loadoutMapper';
 import { CampaignSetup } from './components/CampaignSetup';
 
@@ -33,6 +35,7 @@ export default function App() {
 
   const setCharacterSheet = useCharacterStore((s) => s.setCharacterSheet);
   const activeEncounter = useCombatStore((s: any) => s.activeEncounter);
+  const { isShaking } = useDirector();
 
   const [isBioMatrixOpen, setBioMatrixOpen] = useState(false);
   const [isEvolutionOpen, setEvolutionOpen] = useState(false);
@@ -332,7 +335,7 @@ export default function App() {
 
   // ─── GAMEPLAY: 5-Panel VTT Interface ────────────────────────────────
   return (
-    <div className="fixed inset-0 overflow-hidden bg-zinc-950 text-white flex flex-col font-sans select-none">
+    <div className={`fixed inset-0 overflow-hidden bg-zinc-950 text-white flex flex-col font-sans select-none ${isShaking ? 'animate-shake' : ''}`}>
       <div className="flex-grow flex relative min-h-0">
         {/* LEFT: Director's Log */}
         <div className="w-80 xl:w-96 bg-zinc-900/90 border-r border-zinc-800 flex flex-col z-10 flex-shrink-0">
@@ -369,6 +372,11 @@ export default function App() {
                 <div className={`mt-1 h-0.5 transition-all duration-300 ${vttTier === nav.tier ? `w-full bg-current ${nav.color}` : 'w-0 bg-zinc-700'}`} />
               </button>
             ))}
+          </div>
+
+          {/* World Clock (Phase 3) */}
+          <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50">
+            <WorldClock />
           </div>
 
           <div className="absolute top-4 right-4 z-20 pointer-events-none">

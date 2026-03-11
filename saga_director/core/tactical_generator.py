@@ -1,5 +1,5 @@
 import random
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from .encounter_schemas import CombatEncounter, Combatant, SpatialData
 
 class TacticalGenerator:
@@ -10,15 +10,25 @@ class TacticalGenerator:
         cls._world_manager = wm
 
     @staticmethod
-    def generate_region_map(biome: str, hex_id: int):
+    def apply_deltas(grid: List[List[Any]], deltas: List[Dict]):
+        if not deltas:
+            return
+        for d in deltas:
+            x = d.get("x")
+            y = d.get("y")
+            val = d.get("new_value")
+            if x is not None and y is not None and 0 <= y < len(grid) and 0 <= x < len(grid[0]):
+                grid[y][x] = val
+
+    @staticmethod
+    def generate_region_map(biome: str, hex_id: int, deltas: List[Dict] = None):
         """Tier 2: 20x20 Regional Strategic Grid."""
-        # 0 = Empty, 1 = POI (Village/Ruins), 2 = Obstacle (Woods/Mountain)
         width, height = 20, 20
         grid = [[0 for _ in range(width)] for _ in range(height)]
+        grid[10][10] = 1 # Central POI
         
-        # Place a central POI
-        grid[10][10] = 1
-        
+        TacticalGenerator.apply_deltas(grid, [d for d in (deltas or []) if d["layer"] == 2])
+
         return {
             "hex_id": hex_id,
             "biome": biome,
@@ -28,12 +38,13 @@ class TacticalGenerator:
         }
 
     @staticmethod
-    def generate_local_grid(biome: str, hex_id: int, rx: int, ry: int):
+    def generate_local_grid(biome: str, hex_id: int, rx: int, ry: int, deltas: List[Dict] = None):
         """Tier 3: 100x100 Local Exploration Grid."""
-        # "G" = Grass, "T" = Tree, "R" = Rock
         width, height = 100, 100
         grid = [["G" for _ in range(width)] for _ in range(height)]
         
+        TacticalGenerator.apply_deltas(grid, [d for d in (deltas or []) if d["layer"] == 3])
+
         return {
             "hex_id": hex_id,
             "rx": rx,
@@ -53,14 +64,13 @@ class TacticalGenerator:
         current_hour: float = 12.0, 
         densities: Dict = None,
         external_npcs: List = None,
-        player_sprite: Dict = None
+        player_sprite: Dict = None,
+        deltas: List[Dict] = None
     ):
         """Tier 4: 100x100 Player/Tactical Grid with building interiors and NPCs."""
         width, height = 100, 100
         grid = [["EMPTY" for _ in range(width)] for _ in range(height)]
         
-        # Deterministic building placement based on local coordinates
-        # For Tier 4, we want a small tactical area
         for y in range(40, 60):
             for x in range(40, 60):
                 if x == 40 or x == 59 or y == 40 or y == 59:
@@ -68,13 +78,14 @@ class TacticalGenerator:
                 else:
                     grid[y][x] = "FLOOR"
 
-        # Populate with some basic noise (GRASS/DEBRIS)
         rng = random.Random(hex_id + lx + ly)
         for _ in range(200):
             rx = rng.randint(0, 99)
             ry = rng.randint(0, 99)
             if grid[ry][rx] == "EMPTY":
                 grid[ry][rx] = "GRASS" if rng.random() > 0.2 else "DEBRIS"
+
+        TacticalGenerator.apply_deltas(grid, [d for d in (deltas or []) if d["layer"] in [4, 5]])
 
         return {
             "encounter_id": f"TAC_{hex_id}_{lx}_{ly}",
@@ -86,7 +97,7 @@ class TacticalGenerator:
             "data": {
                 "category": "COMBAT",
                 "title": f"{biome} Tactical Zone",
-                "narrative_prompt": f"You have entered a tactical zone in the {biome}. Use the environment to your advantage.",
+                "narrative_prompt": f"You have entered a tactical zone in the {biome}.",
                 "enemies": []
             }
         }

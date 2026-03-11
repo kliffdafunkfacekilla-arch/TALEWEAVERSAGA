@@ -24,11 +24,17 @@ export interface PipBank {
 
 export interface CharacterSheet {
     name: string;
+    backstory?: string;
+    catalyst?: string;
     attributes: CoreAttributes;
     vitals: {
+        current_hp: number;
         max_hp: number;
+        current_stamina: number;
         max_stamina: number;
+        current_composure: number;
         max_composure: number;
+        current_focus: number;
         max_focus: number;
         body_injuries: string[];
         mind_injuries: string[];
@@ -98,10 +104,10 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
         attributes: sheet.attributes || get().attributes,
         skills: sheet.tactical_skills ? Object.keys(sheet.tactical_skills) : get().skills,
         vitals: sheet.vitals ? {
-            hp: { current: sheet.vitals.max_hp, max: sheet.vitals.max_hp },
-            stamina: { current: sheet.vitals.max_stamina, max: sheet.vitals.max_stamina },
-            focus: { current: sheet.vitals.max_focus, max: sheet.vitals.max_focus },
-            composure: { current: sheet.vitals.max_composure, max: sheet.vitals.max_composure }
+            hp: { current: sheet.vitals.current_hp ?? sheet.vitals.max_hp, max: sheet.vitals.max_hp },
+            stamina: { current: sheet.vitals.current_stamina ?? sheet.vitals.max_stamina, max: sheet.vitals.max_stamina },
+            focus: { current: sheet.vitals.current_focus ?? sheet.vitals.max_focus, max: sheet.vitals.max_focus },
+            composure: { current: sheet.vitals.current_composure ?? sheet.vitals.max_composure, max: sheet.vitals.max_composure }
         } : get().vitals,
         pip_bank: sheet.pip_bank || { stars: 0, scars: 0, survivors: 0 }
     }),
@@ -159,7 +165,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
     evolveSkill: async (skill) => {
         const state = get();
         if (!state.characterSheet) return;
-        const res = await fetch(`${import.meta.env.VITE_SAGA_RULES_ENGINE_URL || "http://localhost:8014"}/api/rules/character/evolve`, {
+        const res = await fetch(`${import.meta.env.VITE_SAGA_CHAR_ENGINE_URL || "http://localhost:8014"}/api/rules/character/evolve`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

@@ -60,18 +60,20 @@ const RegionalView = ({ grid }: { grid: any }) => {
   );
 };
 
-export const MapRenderer = () => {
+export const MapRenderer: React.FC = () => {
   const vttTier = useGameStore((s) => s.vttTier);
   const mapData = useWorldStore((s) => s.mapData);
-  const fetchMapData = useWorldStore((s) => s.fetchMapData);
   const isLoading = useWorldStore((s) => s.isLoading);
+  const fetchMapData = useWorldStore((s) => s.fetchMapData);
+
+  const activeCampaignId = useGameStore((s) => s.activeCampaignId);
 
   // In a real scenario, this comes from the campaign state
   const hexId = 200500; 
 
   useEffect(() => {
-    fetchMapData(hexId);
-  }, [vttTier, hexId, fetchMapData]);
+    fetchMapData(hexId, activeCampaignId);
+  }, [vttTier, hexId, fetchMapData, activeCampaignId]);
 
   if (isLoading || !mapData) {
     return (

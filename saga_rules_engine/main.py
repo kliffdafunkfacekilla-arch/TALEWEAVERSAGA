@@ -6,6 +6,7 @@ from core.calc_evolution import apply_biology
 from core.calc_loadout import apply_holding_fees
 from core.calc_skills import calculate_skills, load_tactical_triads
 from core.calc_magic import calculate_magic
+from core.storage import save_character, load_character
 from saga_common.models.core import PipBank
 
 # Imported from old Item Engine
@@ -39,6 +40,20 @@ class EconomyRequest(BaseModel):
 class ResolveRequest(BaseModel):
     item_id: str
     target_vitals: Optional[Dict[str, Any]] = {}
+
+class SkillDrainRequest(BaseModel):
+    skill_name: str
+    lead_type: str  # "Body" or "Mind"
+    rank: int
+    current_stamina: int
+    current_focus: int
+
+class SkillDrainResult(BaseModel):
+    stamina_drain: int
+    focus_drain: int
+    new_stamina: int
+    new_focus: int
+    is_exhausted: bool
 
 app.add_middleware(
     CORSMiddleware,
@@ -151,6 +166,36 @@ def roll_skill_check(req: SkillCheckRequest) -> SkillCheckResult:
         is_success=is_success,
         margin=margin,
         scars_and_stars_trigger=pip_trigger
+    )
+
+@app.post("/api/rules/skills/drain", response_model=SkillDrainResult)
+def drain_skill_resources(req: SkillDrainRequest) -> SkillDrainResult:
+    """
+    Calculate stamina and focus drain for using a tactical skill.
+    """
+    # Base cost is 1, plus 1 for every 2 ranks (Rank 0/1: 1, Rank 2/3: 2, Rank 4/5: 3)
+    cost = 1 + (req.rank // 2)
+    
+    stamina_drain = 0
+    focus_drain = 0
+    
+    if req.lead_type.lower() == "body":
+        stamina_drain = cost
+    else:
+        focus_drain = cost
+        
+    new_stamina = max(0, req.current_stamina - stamina_drain)
+    new_focus = max(0, req.current_focus - focus_drain)
+    
+    # Exhaustion occurs if either primary pool hits 0
+    is_exhausted = (new_stamina <= 0 if stamina_drain > 0 else False) or (new_focus <= 0 if focus_drain > 0 else False)
+    
+    return SkillDrainResult(
+        stamina_drain=stamina_drain,
+        focus_drain=focus_drain,
+        new_stamina=new_stamina,
+        new_focus=new_focus,
+        is_exhausted=is_exhausted
     )
 
 @app.post("/api/rules/character/calculate", response_model=CompiledCharacterSheet)
@@ -311,6 +356,26 @@ async def evolve_character(
              s_data.pips = trail_val % 5
 
     return sheet
+
+@app.post("/api/character/{player_id}")
+async def persist_character(player_id: str, sheet: CompiledCharacterSheet = Body(...)):
+    """
+    Saves a compiled character sheet to the local filesystem.
+    """
+    success = save_character(player_id, sheet.model_dump())
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to save character sheet.")
+    return {"status": "success", "player_id": player_id}
+
+@app.get("/api/character/{player_id}", response_model=CompiledCharacterSheet)
+async def get_character(player_id: str):
+    """
+    Loads a compiled character sheet from the local filesystem.
+    """
+    sheet_data = load_character(player_id)
+    if not sheet_data:
+        raise HTTPException(status_code=404, detail=f"Character for player {player_id} not found.")
+    return CompiledCharacterSheet(**sheet_data)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8014)
