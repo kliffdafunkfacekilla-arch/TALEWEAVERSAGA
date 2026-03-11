@@ -14,6 +14,8 @@ export function WorldArchitect({ onBack }: WorldArchitectProps) {
     const viewLens = useGameStore((s: any) => s.viewLens);
     const setViewLens = useGameStore((s: any) => s.setViewLens);
 
+    // Context / Props (Stubbed for now, normally from Zustand or upper props)
+
     const [activeTab, setActiveTab] = useState<'PAINTING' | 'LORE' | 'GEOGRAPHY' | 'CLIMATE' | 'BIOMES' | 'RESOURCES' | 'ECOSYSTEM' | 'FACTIONS'>('PAINTING');
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -29,7 +31,6 @@ export function WorldArchitect({ onBack }: WorldArchitectProps) {
     const [loreResources, setLoreResources] = useState<{ title: string }[]>([]);
 
 
-    // --- ARCHITECT'S PALETTE (EDIT MODE) ---
     // --- ARCHITECT'S PALETTE (EDIT MODE) ---
     const editMode = useGameStore((s: any) => s.editMode);
     const setEditMode = useGameStore((s: any) => s.setEditMode);
@@ -827,53 +828,53 @@ export function WorldArchitect({ onBack }: WorldArchitectProps) {
                 {selectedHex && (
                     <div className="absolute top-6 right-6 w-72 bg-zinc-900/95 border border-amber-900/50 p-5 shadow-2xl backdrop-blur-md z-20">
                         <h4 className="text-sm font-bold text-amber-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-2 flex justify-between">
-                            <span>Hex #{selectedHex.id}</span>
-                            <span className="text-zinc-500">[{Math.round(selectedHex.x)}, {Math.round(selectedHex.y)}]</span>
+                            <span>Hex #{selectedHex?.id}</span>
+                            <span className="text-zinc-500">[{Math.round(selectedHex?.x || 0)}, {Math.round(selectedHex?.y || 0)}]</span>
                         </h4>
 
                         <ul className="text-xs font-mono space-y-2">
-                            <li className="flex justify-between"><span className="text-zinc-500">Biome</span><span className="text-white font-bold">{selectedHex.biome_tag || "Unknown"}</span></li>
-                            <li className="flex justify-between"><span className="text-zinc-500">Elevation</span><span className="text-white">{((selectedHex.elevation || 0) * 100).toFixed(1)}%</span></li>
-                            <li className="flex justify-between"><span className="text-zinc-500">Temp</span><span className="text-red-400">{(selectedHex.temperature || 0).toFixed(1)}°C</span></li>
-                            <li className="flex justify-between"><span className="text-zinc-500">Moisture</span><span className="text-blue-400">{((selectedHex.moisture || 0) * 100).toFixed(0)}%</span></li>
-                            <li className="flex justify-between"><span className="text-zinc-500">Wind</span><span className="text-zinc-300">[{(selectedHex.wind_dx || 0).toFixed(1)}, {(selectedHex.wind_dy || 0).toFixed(1)}]</span></li>
+                            <li className="flex justify-between"><span className="text-zinc-500">Biome</span><span className="text-white font-bold">{selectedHex?.biome_tag || "Unknown"}</span></li>
+                            <li className="flex justify-between"><span className="text-zinc-500">Elevation</span><span className="text-white">{((selectedHex?.elevation || 0) * 100).toFixed(1)}%</span></li>
+                            <li className="flex justify-between"><span className="text-zinc-500">Temp</span><span className="text-red-400">{(selectedHex?.temperature || 0).toFixed(1)}°C</span></li>
+                            <li className="flex justify-between"><span className="text-zinc-500">Moisture</span><span className="text-blue-400">{((selectedHex?.moisture || 0) * 100).toFixed(0)}%</span></li>
+                            <li className="flex justify-between"><span className="text-zinc-500">Wind</span><span className="text-zinc-300">[{(selectedHex?.wind_dx || 0).toFixed(1)}, {(selectedHex?.wind_dy || 0).toFixed(1)}]</span></li>
                         </ul>
 
                         <div className="mt-4 pt-3 border-t border-zinc-800 space-y-3">
-                            {selectedHex.faction_owner ? (
+                            {selectedHex?.faction_owner ? (
                                 <div>
                                     <span className="text-[10px] text-zinc-500 uppercase block">Territory</span>
-                                    <span className="text-xs font-bold text-red-400">{selectedHex.faction_owner}</span>
+                                    <span className="text-xs font-bold text-red-400">{selectedHex?.faction_owner}</span>
                                 </div>
                             ) : <span className="text-[10px] text-zinc-600 uppercase italic block mb-2">Unclaimed Territory</span>}
 
-                            {selectedHex.local_fauna?.length > 0 && (
+                            {selectedHex?.local_fauna?.length > 0 && (
                                 <div>
                                     <span className="text-[10px] text-zinc-500 uppercase block mb-1">Local Fauna</span>
                                     <div className="flex flex-wrap gap-1">
-                                        {selectedHex.local_fauna.map((lf: string) => (
+                                        {selectedHex?.local_fauna.map((lf: string) => (
                                             <span key={lf} className="px-2 py-1 bg-zinc-950 border border-zinc-800 text-[10px] text-red-400">{lf}</span>
                                         ))}
                                     </div>
                                 </div>
                             )}
 
-                            {selectedHex.local_flora?.length > 0 && (
+                            {selectedHex?.local_flora?.length > 0 && (
                                 <div>
                                     <span className="text-[10px] text-zinc-500 uppercase block mb-1 mt-2">Local Flora</span>
                                     <div className="flex flex-wrap gap-1">
-                                        {selectedHex.local_flora.map((lf: string) => (
+                                        {selectedHex?.local_flora.map((lf: string) => (
                                             <span key={lf} className="px-2 py-1 bg-zinc-950 border border-zinc-800 text-[10px] text-green-400">{lf}</span>
                                         ))}
                                     </div>
                                 </div>
                             )}
 
-                            {selectedHex.local_resources?.length > 0 && (
+                            {selectedHex?.local_resources?.length > 0 && (
                                 <div>
                                     <span className="text-[10px] text-zinc-500 uppercase block mb-1 mt-2">Natural Resources</span>
                                     <div className="flex flex-wrap gap-1">
-                                        {selectedHex.local_resources.map((lf: string) => (
+                                        {selectedHex?.local_resources.map((lf: string) => (
                                             <span key={lf} className="px-2 py-1 bg-zinc-950 border border-amber-900/40 text-[10px] text-yellow-500">{lf}</span>
                                         ))}
                                     </div>

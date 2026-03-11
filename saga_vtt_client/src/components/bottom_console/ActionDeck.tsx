@@ -53,8 +53,8 @@ export function ActionDeck() {
     const vitals = useCharacterStore((s) => s.vitals);
     const setPlayerVitals = useCharacterStore((s) => s.setPlayerVitals);
 
-    const activeEncounter = useCombatStore((s) => s.activeEncounter);
-    const selectedTargetId = useCombatStore((s) => s.selectedTargetId);
+    const activeEncounter = useCombatStore((s: any) => s.activeEncounter);
+    const selectedTargetId = useCombatStore((s: any) => s.selectedTargetId);
 
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -112,12 +112,12 @@ export function ActionDeck() {
                 return;
             }
             if (activeEncounter) {
-                const dist = calculateDistance(activeEncounter, selectedTargetId);
-                if (dist > card.range) {
-                    addChatMessage({ sender: 'SYSTEM', text: `OUT OF RANGE. Target is ${dist} squares away. ${card.name} max range: ${card.range}.` });
+                const dist = calculateDistance({ tokens: activeEncounter.tokens || [] }, selectedTargetId);
+                if (dist > (card.range as number)) {
+                    addChatMessage({ sender: 'SYSTEM', text: `OUT OF RANGE. Target is ${dist} squares away. ${card.name} max range: ${card.range as number}.` });
                     return;
                 }
-                const targetToken = activeEncounter.tokens.find(t => t.id === selectedTargetId);
+                const targetToken = (activeEncounter.tokens || []).find((t: any) => t.id === selectedTargetId);
                 if (targetToken) targetName = targetToken.name;
             }
         }
@@ -211,7 +211,7 @@ export function ActionDeck() {
     };
 
     const disabled = isProcessing || uiLocked;
-    const currentDist = (activeEncounter && selectedTargetId) ? calculateDistance(activeEncounter, selectedTargetId) : null;
+    const currentDist = (activeEncounter && selectedTargetId) ? calculateDistance({ tokens: activeEncounter.tokens || [] }, selectedTargetId) : null;
 
     // ── Render ──
     const displayLoadout = [...clientLoadout, ...defaultExplorationCards];
@@ -222,7 +222,7 @@ export function ActionDeck() {
 
             <div className="flex-grow flex items-end justify-center gap-3 h-full">
                 {displayLoadout.map((card) => {
-                    const outOfRange = (card.target === 'TARGET' || card.target === 'ENEMY') && currentDist !== null && currentDist > card.range;
+                    const outOfRange = (card.target === 'TARGET' || card.target === 'ENEMY') && currentDist !== null && currentDist > (card.range as number);
                     const isSkill = card.type === 'MOBILITY' || card.type === 'SOCIAL' || card.type === 'UTILITY';
 
                     return (
@@ -304,15 +304,13 @@ export function ActionDeck() {
 
             {/* Quick Inventory */}
             <div className="flex gap-2 items-end flex-shrink-0 pb-4">
-                {inventorySlots.map((slot) => (
+                {Array.from({ length: inventorySlots }).map((_, i) => (
                     <div
-                        key={slot.id}
-                        className={`w-14 h-14 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200 border-2
-                            ${slot.itemName ? 'bg-zinc-800 border-amber-700/50 hover:border-amber-500' : 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-600'}
-                        `}
-                        title={slot.itemName || `Empty Slot ${slot.id}`}
+                        key={i}
+                        className={`w-14 h-14 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-200 border-2 bg-zinc-900/60 border-zinc-800 hover:border-zinc-600`}
+                        title={`Empty Slot ${i}`}
                     >
-                        {slot.itemName ? <span className="text-amber-400 text-lg">✦</span> : <span className="text-zinc-700 text-xs">{slot.id}</span>}
+                        <span className="text-zinc-700 text-xs">{i}</span>
                     </div>
                 ))}
             </div>
