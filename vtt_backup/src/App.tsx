@@ -3,6 +3,9 @@ import { PixiBattlemap } from './components/map/PixiBattlemap';
 import { DirectorLog } from './components/left_panel/DirectorLog';
 import { ActionDeck } from './components/bottom_console/ActionDeck';
 import { ResourceOrbs } from './components/bottom_console/ResourceOrbs';
+import { BioMatrix } from './components/right_panel/BioMatrix';
+import { InventoryPanel } from './components/right_panel/InventoryPanel';
+import { InjurySlots } from './components/right_panel/InjurySlots';
 import { QuestTracker } from './components/hud/QuestTracker';
 import { WorldArchitect } from './components/WorldArchitect';
 import { SoulweaveWizard } from './components/SoulweaveWizard';
@@ -13,9 +16,6 @@ import { ExplorationNodeMap } from './components/map/ExplorationNodeMap';
 import { MapRenderer } from './components/MapRenderer';
 import { SurvivalScreen } from './components/survival/SurvivalScreen';
 import { SettlementInspector } from './components/SettlementInspector';
-import { BioMatrix } from './components/right_panel/BioMatrix';
-import { InventoryPanel } from './components/right_panel/InventoryPanel';
-import { InjurySlots } from './components/right_panel/InjurySlots';
 import { useGameStore, type VTTTier } from './store/useGameStore';
 import { useCharacterStore } from './store/useCharacterStore';
 import { useCombatStore } from './store/useCombatStore';
@@ -33,7 +33,7 @@ export default function App() {
   const setClientLoadout = useGameStore((s) => s.setClientLoadout);
 
   const setCharacterSheet = useCharacterStore((s) => s.setCharacterSheet);
-  const activeEncounter = useCombatStore((s: any) => s.activeEncounter);
+  const activeEncounter = useCombatStore((s) => s.activeEncounter);
 
   const [isBioMatrixOpen, setBioMatrixOpen] = useState(false);
   const [isEvolutionOpen, setEvolutionOpen] = useState(false);
@@ -317,8 +317,7 @@ export default function App() {
   if (currentScreen === 'CAMPAIGN_SETUP') {
     return (
       <div className="relative w-screen h-screen">
-        {/* @ts-ignore */}
-        <CampaignSetup onCommence={handleEnterCampaign as any} />
+        <CampaignSetup onCommence={handleEnterCampaign} />
         <button onClick={() => setScreen('MAIN_MENU')} className="absolute top-4 left-4 z-50 bg-black/50 border border-zinc-700 px-4 py-2 text-xs font-bold uppercase text-zinc-400 hover:text-white transition-all">← Cancel Setup</button>
       </div>
     );
@@ -345,7 +344,7 @@ export default function App() {
           <EncounterOverlay />
           <ActionHUD />
           <SettlementInspector />
-          {isEvolutionOpen && <EvolutionUI onClose={(() => setEvolutionOpen(false)) as any} />}
+          {isEvolutionOpen && <EvolutionUI onClose={() => setEvolutionOpen(false)} />}
 
           {/* Tier Breadcrumb / Zoom Control (Dev) */}
           <div className="absolute top-4 left-4 z-50 flex gap-2">
